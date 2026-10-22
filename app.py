@@ -1,5 +1,6 @@
 import streamlit as st
 from datetime import datetime
+from zoneinfo import ZoneInfo
 from openai import OpenAI
 import gspread
 from google.oauth2.service_account import Credentials
@@ -68,21 +69,17 @@ client = OpenAI(api_key=api_key)
 def log_to_google_sheet(question, answer):
     """Securely appends live presentation interactions to the shared log sheet."""
     try:
-        # Fixed: Specified the complete explicit access scope for Google Sheets endpoints
-        scopes = [
-            "https://googleapis.com",
-            "https://googleapis.com"
-        ]
-        creds = Credentials.from_service_account_info(gs_credentials, scopes=scopes)
+        scopes = ["https://www.googleapis.com/auth/spreadsheets"]
+        creds = Credentials.from_service_account_info(dict(gs_credentials), scopes=scopes)
         gs_client = gspread.authorize(creds)
         
-        # Accesses the dedicated presentation ledger tracking your queries
-        sheet = gs_client.open("IDA_Conference_QA_Logs").sheet1
-        timestamp = datetime.now().strftime("%Y-%m-%d %H:%M:%S")
+        # Opens the presentation log sheet by its ID (from the sheet's URL)
+        sheet = gs_client.open_by_key("1xd6R6Vc6yhjKw89s-Ol5o-Uo5QmjXDqJNHZfkwBrsCc").sheet1
+        timestamp = datetime.now(ZoneInfo("Asia/Singapore")).strftime("%Y-%m-%d %H:%M:%S")
         sheet.append_row([timestamp, question, answer])
     except Exception as e:
-        # Fails silently so a log connection issue never crashes your front-end user experience
-        pass
+        # Never crash the chat, but record the reason in the Streamlit logs
+        print(f"Google Sheet logging failed: {e!r}")
 
 # 4. Persistent Conversation Management
 if "messages" not in st.session_state:
